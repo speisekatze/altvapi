@@ -46,13 +46,15 @@ var client = req.headers.client;
   var s = salt;
   var h = req.headers.secret;
   var m = req.headers.client + req.headers.host + req.path + JSON.stringify(req.body);
+  console.log(m);
   const hash = new SHA3(512);
   hash.update(m + s);
   if (h == hash.digest('hex')) {
     console.log('ok');
   } else {
-    res.send(JSON.stringify({"status": 403, "error": 'unauthorized', "response": null}));
-    return;
+    var err = new Error('Unauthorized');
+    err.status = 403;
+    next(err);
   }
   var rawdata = fs.readFileSync('config/mysql.json');
   var config = JSON.parse(rawdata);
