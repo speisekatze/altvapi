@@ -1,0 +1,6 @@
+{
+"clients" : [{
+  id: "34873",
+  secret: "geheim"
+}]
+}
