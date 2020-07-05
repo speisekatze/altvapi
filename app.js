@@ -6,17 +6,23 @@ var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 var mysql= require('mysql');
 var http = require('http');
-
+const { SHA3 } = require('sha3');
 
 var index = require('./routes/index');
 var users = require('./routes/users');
 var characters = require('./routes/characters');
+
+const fs = require('fs');
+
+var rawdata = fs.readFileSync('config/clients.json');
+var clients = JSON.parse(rawdata)['clients'];
 
 var app = express();
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
+app.set('clients', clients);
 
 // uncomment after placing your favicon in /public
 //app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
@@ -27,14 +33,41 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 //Database connection
 app.use(function(req, res, next){
+var client = req.headers.client;
+  var clients = req.app.get('clients');
+	salt = '';
+  for (var i=0; i<clients.length;i++) {
+  c = clients[i];
+    if (c.id == client) {
+      salt = c.secret;
+    }
+  }
+  
+  var s = salt;
+  var h = req.headers.secret;
+  var m = req.headers.client + req.headers.host + req.path + JSON.stringify(req.body);
+  const hash = new SHA3(512);
+  hash.update(m + s);
+  if (h == hash.digest('hex')) {
+    console.log('ok');
+  } else {
+    res.send(JSON.stringify({"status": 403, "error": 'unauthorized', "response": null}));
+    return;
+  }
+  var rawdata = fs.readFileSync('config/mysql.json');
+  var config = JSON.parse(rawdata);
 	global.connection = mysql.createConnection({
-	  	host     : 'localhost',
-	  	user     : 'root',
-  		database : 'test'
+	  	host     : config.host,
+	  	user     : config.user,
+	  	password : config.password,
+  		database : config.database
 	});
 	connection.connect();
 	next();
 });
+
+
+
 app.use('/', index);
 app.use('/api/v1/accounts', users);
 app.use('/api/v1/chars', characters);
